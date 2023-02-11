@@ -1,0 +1,107 @@
+name: Build Go Binary
+description: Build a Go binary
+inputs:
+  GITHUB_TOKEN:
+    description: GITHUB_TOKEN for uploading releases to Github asserts.
+    required: true
+    default: ""
+  GOOS:
+    description: "GOOS is the running programs operating system target: one of darwin, freebsd, linux, and so on."
+    required: true
+    default: ""
+  GOARCH:
+    description: "GOARCH is the running programs architecture target: one of 386, amd64, arm, s390x, loong64 and so on."
+    required: true
+    default: ""
+  GOAMD64:
+    description: "GOAMD64 is the running programs amd64 microarchitecture level: one of v1, v2, v3, v4."
+    required: false
+    default: ""
+  GOVERSION:
+    description: The `Go` compiler version.
+    required: false
+    default: ""
+  BUILD_FLAGS:
+    description: Additional arguments to pass the go build command.
+    required: false
+    default: ""
+  LDFLAGS:
+    description: Values to provide to the -ldflags argument
+    required: false
+    default: ""
+  PROJECT_PATH:
+    description: Where to run `go build .`
+    required: false
+    default: .
+  BINARY_NAME:
+    description: Specify another binary name if do not want to use repository basename
+    required: false
+    default: ""
+  PRE_COMMAND:
+    description: "Extra command that will be executed before `go build`, may for solving dependency"
+    required: false
+    default: ""
+  BUILD_COMMAND:
+    description: "The actual command to build binary, typically `go build`."
+    required: false
+    default: go build
+  EXECUTABLE_COMPRESSION:
+    description: Compression executable binary by some third-party tools. Only `upx` is supported at the moment.
+    required: false
+    default: ""
+  EXTRA_FILES:
+    description: Extra files that will be packaged into artifacts either.
+    required: false
+    default: ""
+  MD5SUM:
+    description: Publish `.md5` along with artifacts.
+    required: false
+    default: "TRUE"
+  SHA256SUM:
+    description: Publish `.sha256` along with artifacts.
+    required: false
+    default: "FALSE"
+  RELEASE_TAG:
+    description: Upload binaries to specified release page that indicated by Git tag.
+    required: false
+    default: ""
+  RELEASE_NAME:
+    description: Upload binaries to specified release page that indicated by release name.
+    required: false
+    default: ""
+  OVERWRITE:
+    description: "Overwrite asset if it's already exist."
+    required: false
+    default: "FALSE"
+  ASSET_NAME:
+    description: Customize asset name if do not want to use the default format.
+    required: false
+    default: ""
+  RETRY:
+    description: How many times retrying if upload fails.
+    required: false
+    default: "3"
+  POST_COMMAND:
+    description: Extra command that will be executed for teardown work
+    required: false
+    default: ""
+  COMPRESS_ASSETS:
+    description: Compress assets before uploading
+    required: false
+    default: "TRUE"
+runs:
+  using: composite
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+        token: ${{ inputs.github_token }}
+
+    - uses: actions/setup-go@v3
+      with:
+        go-version: ^1.19.5
+
+    - name: Run build
+      run: ${{ github.action_path }}/build.sh '${{ toJSON(inputs) }}'
+      shell: bash
