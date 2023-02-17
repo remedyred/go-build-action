@@ -60,6 +60,11 @@ else
 fi
 ##
 
+function escape_quotes() {
+	local input_string="$1"
+	echo "$input_string" | sed "s/'/'\\\\''/g; s/\"/\\\\\"/g"
+}
+
 function preBuild() {
 	if [ -n "${INPUT_PRE_COMMAND}" ]; then
 		eval "${INPUT_PRE_COMMAND}"
@@ -75,12 +80,13 @@ function build() {
 	fi
 
 	# prefix for ldflags
-	LDFLAGS_PREFIX=''
+	local LDFLAGS_PREFIX=''
 	if [ -n "${INPUT_LDFLAGS}" ]; then
 		LDFLAGS_PREFIX="-ldflags"
 	fi
 
 	# fulfill GOAMD64 option
+	local GOAMD64_FLAG
 	if [ -n "${INPUT_GOAMD64}" ]; then
 		if [[ ${INPUT_GOARCH} =~ amd64 ]]; then
 			GOAMD64_FLAG="${INPUT_GOAMD64}"
@@ -107,7 +113,8 @@ function build() {
 			cp "${BINARY_NAME}${EXT}" "${BUILD_ARTIFACTS_FOLDER}"/
 		fi
 	else
-		local BUILD_CMD="${INPUT_BUILD_COMMAND} -o ${BUILD_ARTIFACTS_FOLDER}/${BINARY_NAME}${EXT} ${INPUT_BUILD_FLAGS} ${LDFLAGS_PREFIX} ${INPUT_LDFLAGS}"
+		local BUILD_CMD
+		BUILD_CMD="${INPUT_BUILD_COMMAND} -o ${BUILD_ARTIFACTS_FOLDER}/${BINARY_NAME}${EXT} ${INPUT_BUILD_FLAGS} ${LDFLAGS_PREFIX} $(escape_quotes "$INPUT_LDFLAGS")"
 		GOAMD64=${GOAMD64_FLAG} GOOS="${INPUT_GOOS}" GOARCH="${INPUT_GOARCH}" eval "${BUILD_CMD}"
 	fi
 
