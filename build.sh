@@ -1,28 +1,38 @@
 #!/bin/bash -eux
 
+function jqGet() {
+	local VALUE
+	VALUE=$(echo "$INPUTS" | jq -r "$1")
+	if [ "${VALUE}" == "null" ]; then
+		VALUE=""
+	fi
+	echo "${VALUE}"
+}
+
 # Get inputs from JSON
 INPUTS=${1-}
-INPUT_ASSET_NAME=$(echo "$INPUTS" | jq -r '.ASSET_NAME')
-INPUT_BINARY_NAME=$(echo "$INPUTS" | jq -r '.BINARY_NAME')
-INPUT_BUILD_COMMAND=$(echo "$INPUTS" | jq -r '.BUILD_COMMAND')
-INPUT_BUILD_FLAGS=$(echo "$INPUTS" | jq -r '.BUILD_FLAGS')
-INPUT_COMPRESS_ASSETS=$(echo "$INPUTS" | jq -r '.COMPRESS_ASSETS')
-INPUT_EXECUTABLE_COMPRESSION=$(echo "$INPUTS" | jq -r '.EXECUTABLE_COMPRESSION')
-INPUT_EXTRA_FILES=$(echo "$INPUTS" | jq -r '.EXTRA_FILES')
-INPUT_GITHUB_TOKEN=$(echo "$INPUTS" | jq -r '.GITHUB_TOKEN')
-INPUT_GOAMD64=$(echo "$INPUTS" | jq -r '.GOAMD64')
-INPUT_GOARCH=$(echo "$INPUTS" | jq -r '.GOARCH')
-INPUT_GOOS=$(echo "$INPUTS" | jq -r '.GOOS')
-INPUT_LDFLAGS=$(echo "$INPUTS" | jq -r '.LDFLAGS')
-INPUT_MD5SUM=$(echo "$INPUTS" | jq -r '.MD5SUM')
-INPUT_OVERWRITE=$(echo "$INPUTS" | jq -r '.OVERWRITE')
-INPUT_POST_COMMAND=$(echo "$INPUTS" | jq -r '.POST_COMMAND')
-INPUT_PRE_COMMAND=$(echo "$INPUTS" | jq -r '.PRE_COMMAND')
-INPUT_PROJECT_PATH=$(echo "$INPUTS" | jq -r '.PROJECT_PATH')
-INPUT_RELEASE_NAME=$(echo "$INPUTS" | jq -r '.RELEASE_NAME')
-INPUT_RELEASE_TAG=$(echo "$INPUTS" | jq -r '.RELEASE_TAG')
-INPUT_RETRY=$(echo "$INPUTS" | jq -r '.RETRY')
-INPUT_SHA256SUM=$(echo "$INPUTS" | jq -r '.SHA256SUM')
+INPUT_ASSET_NAME=$(jqGet '.ASSET_NAME')
+INPUT_BINARY_NAME=$(jqGet '.BINARY_NAME')
+INPUT_BUILD_COMMAND=$(jqGet '.BUILD_COMMAND')
+INPUT_BUILD_FLAGS=$(jqGet '.BUILD_FLAGS')
+INPUT_COMPRESS_ASSETS=$(jqGet '.COMPRESS_ASSETS')
+INPUT_EXECUTABLE_COMPRESSION=$(jqGet '.EXECUTABLE_COMPRESSION')
+INPUT_EXTRA_FILES=$(jqGet '.EXTRA_FILES')
+INPUT_GITHUB_TOKEN=$(jqGet '.GITHUB_TOKEN')
+INPUT_GOAMD64=$(jqGet '.GOAMD64')
+INPUT_GOARCH=$(jqGet '.GOARCH')
+INPUT_GOOS=$(jqGet '.GOOS')
+INPUT_LDFLAGS=$(jqGet '.LDFLAGS')
+INPUT_MD5SUM=$(jqGet '.MD5SUM')
+INPUT_OVERWRITE=$(jqGet '.OVERWRITE')
+INPUT_POST_COMMAND=$(jqGet '.POST_COMMAND')
+INPUT_PRE_COMMAND=$(jqGet '.PRE_COMMAND')
+INPUT_PROJECT_PATH=$(jqGet '.PROJECT_PATH')
+INPUT_RELEASE_NAME=$(jqGet '.RELEASE_NAME')
+INPUT_RELEASE_TAG=$(jqGet '.RELEASE_TAG')
+INPUT_RETRY=$(jqGet '.RETRY')
+INPUT_SHA256SUM=$(jqGet '.SHA256SUM')
+DRY_RUN=${DRY_RUN:-$(jqGet '.DRY_RUN')}
 ##
 
 ## DECLARE GLOBAL VARS ##
@@ -60,6 +70,14 @@ else
 fi
 ##
 
+function run() {
+	if $DRY_RUN; then
+		echo "DRY_RUN: $1"
+	else
+		eval "$1"
+	fi
+}
+
 function escape_quotes() {
 	local input_string="$1"
 	echo "$input_string" | sed "s/'/'\\\\''/g; s/\"/\\\\\"/g"
@@ -67,7 +85,7 @@ function escape_quotes() {
 
 function preBuild() {
 	if [ -n "${INPUT_PRE_COMMAND}" ]; then
-		eval "${INPUT_PRE_COMMAND}"
+		run "${INPUT_PRE_COMMAND}"
 	fi
 }
 
@@ -107,7 +125,7 @@ function build() {
 	cd "${INPUT_PROJECT_PATH}"
 	if [[ ${INPUT_BUILD_COMMAND} =~ ^make.* ]]; then
 		# start with make, assumes using make to build golang binaries, execute it directly
-		GOAMD64=${GOAMD64_FLAG} GOOS="${INPUT_GOOS}" GOARCH="${INPUT_GOARCH}" eval "${INPUT_BUILD_COMMAND}"
+		GOAMD64=${GOAMD64_FLAG} GOOS="${INPUT_GOOS}" GOARCH="${INPUT_GOARCH}" run "${INPUT_BUILD_COMMAND}"
 		if [ -f "${BINARY_NAME}${EXT}" ]; then
 			# assumes the binary will be generated in current dir, copy it for later processes
 			cp "${BINARY_NAME}${EXT}" "${BUILD_ARTIFACTS_FOLDER}"/
@@ -115,7 +133,7 @@ function build() {
 	else
 		local BUILD_CMD
 		BUILD_CMD="${INPUT_BUILD_COMMAND} -o ${BUILD_ARTIFACTS_FOLDER}/${BINARY_NAME}${EXT} ${INPUT_BUILD_FLAGS} ${LDFLAGS_PREFIX} $(escape_quotes "$INPUT_LDFLAGS")"
-		GOAMD64=${GOAMD64_FLAG} GOOS="${INPUT_GOOS}" GOARCH="${INPUT_GOARCH}" eval "${BUILD_CMD}"
+		GOAMD64=${GOAMD64_FLAG} GOOS="${INPUT_GOOS}" GOARCH="${INPUT_GOARCH}" run "${BUILD_CMD}"
 	fi
 
 	if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
@@ -135,7 +153,7 @@ function build() {
 function compress() {
 	if [ -n "${INPUT_EXECUTABLE_COMPRESSION}" ]; then
 		if [[ ${INPUT_EXECUTABLE_COMPRESSION} =~ ^upx.* ]]; then
-			eval "${INPUT_EXECUTABLE_COMPRESSION}" "${BUILD_ARTIFACTS_FOLDER}/${BINARY_NAME}${EXT}"
+			run "${INPUT_EXECUTABLE_COMPRESSION}" "${BUILD_ARTIFACTS_FOLDER}/${BINARY_NAME}${EXT}"
 		else
 			echo "Unsupported executable compression: ${INPUT_EXECUTABLE_COMPRESSION}!"
 			exit 1
@@ -210,7 +228,7 @@ function publish() {
 ### POST COMMAND ###
 function postPublish() {
 	if [ -n "${INPUT_POST_COMMAND}" ]; then
-		eval "${INPUT_POST_COMMAND}"
+		run "${INPUT_POST_COMMAND}"
 	fi
 }
 
